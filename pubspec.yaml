@@ -1,0 +1,32 @@
+name: my_tec_assessment_test
+description: "A new Flutter project."
+publish_to: 'none' # Remove this line if you wish to publish to pub.dev
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.8.1
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  dio: ^5.4.3
+  flutter_riverpod: ^2.5.1
+  freezed_annotation: ^2.4.4
+  geolocator: ^13.0.1
+  grouped_list: ^6.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^5.0.0
+  build_runner: ^2.4.13
+  freezed: ^2.5.7
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/

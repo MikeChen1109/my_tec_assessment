@@ -1,0 +1,4 @@
+enum MeetingRoomViewMode {
+  map,
+  list,
+}
