@@ -10,6 +10,7 @@ import 'package:my_tec_assessment_test/features/meeting_room/domain/repositories
 import 'package:my_tec_assessment_test/features/meeting_room/domain/usecases/get_centres.dart';
 import 'package:my_tec_assessment_test/features/meeting_room/domain/usecases/get_cities.dart';
 import 'package:my_tec_assessment_test/features/meeting_room/domain/usecases/get_meeting_rooms.dart';
+import 'package:my_tec_assessment_test/features/meeting_room/domain/usecases/get_room_availability.dart';
 import 'package:my_tec_assessment_test/features/meeting_room/domain/usecases/get_room_pricing.dart';
 import 'package:my_tec_assessment_test/features/meeting_room/presentation/services/user_location_service.dart';
 import 'package:my_tec_assessment_test/features/meeting_room/presentation/state/meeting_room_filter_state_provider.dart';
@@ -269,6 +270,7 @@ void main() {
       getRoomPricing: GetRoomPricing(repository),
       getMeetingRooms: GetMeetingRooms(repository),
       filterStateReader: () => filterState,
+      getRoomAvailability: GetRoomAvailability(repository),
     );
 
     await _waitForData(notifier);
