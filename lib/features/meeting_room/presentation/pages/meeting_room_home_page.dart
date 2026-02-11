@@ -84,35 +84,43 @@ class _MeetingRoomHomePageState extends ConsumerState<MeetingRoomHomePage> {
           );
 
     return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        backgroundColor: Colors.white,
-        scrolledUnderElevation: 0,
-        title: MeetingRoomAppBarTitle(
-          title: homeState.city?.name ?? '',
-          onTap: () async {
-            final selected = await MeetingRoomLocationDialog.show(
-              context,
-              initialCity: homeState.city,
-              groupedCities: homeState.citiesGroupedByRegion,
-              onSelectNearest: () => ref
-                  .read(meetingRoomHomeStateProvider.notifier)
-                  .resolveNearestCity(),
-            );
-            if (selected == null || selected == homeState.city) {
-              return;
-            }
-            await ref
-                .read(meetingRoomHomeStateProvider.notifier)
-                .changeCity(selected);
-          },
-        ),
-        actions: [
-          IconButton(
-            onPressed: toggleViewMode,
-            icon: Icon(viewModeIcon, color: MeetingRoomTheme.primaryBlue),
+      appBar: PreferredSize(
+        preferredSize: const Size.fromHeight(kToolbarHeight),
+        child: Material(
+          elevation: 5,
+          shadowColor: Colors.black.withOpacity(0.2),
+          child: AppBar(
+            centerTitle: true,
+            backgroundColor: Colors.white,
+            surfaceTintColor: Colors.transparent,
+            elevation: 0,
+            title: MeetingRoomAppBarTitle(
+              title: homeState.city?.name ?? '',
+              onTap: () async {
+                final selected = await MeetingRoomLocationDialog.show(
+                  context,
+                  initialCity: homeState.city,
+                  groupedCities: homeState.citiesGroupedByRegion,
+                  onSelectNearest: () => ref
+                      .read(meetingRoomHomeStateProvider.notifier)
+                      .resolveNearestCity(),
+                );
+                if (selected == null || selected == homeState.city) {
+                  return;
+                }
+                await ref
+                    .read(meetingRoomHomeStateProvider.notifier)
+                    .changeCity(selected);
+              },
+            ),
+            actions: [
+              IconButton(
+                onPressed: toggleViewMode,
+                icon: Icon(viewModeIcon, color: MeetingRoomTheme.primaryBlue),
+              ),
+            ],
           ),
-        ],
+        ),
       ),
       body: body,
     );
