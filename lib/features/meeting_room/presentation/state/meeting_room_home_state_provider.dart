@@ -308,6 +308,9 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
     final selectedCentreCodes = filterState.selectedCentreCodes;
     final capacity = filterState.capacity;
     return rooms.where((item) {
+      if (!item.room.isBookable || item.room.isClosed) {
+        return false;
+      }
       if (item.room.capacity < capacity) {
         return false;
       }
