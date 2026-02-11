@@ -52,7 +52,7 @@ class _MeetingRoomDraggableSheetState
     with SingleTickerProviderStateMixin {
   static const double _minSize = 0.35;
   static const double _midSize = 0.55;
-  static const double _maxSize = 1.05;
+  static const double _maxSize = 1;
 
   late final AnimationController _animController;
   Animation<double>? _sizeAnim;
@@ -150,8 +150,7 @@ class _MeetingRoomDraggableSheetState
     final media = MediaQuery.of(context);
     final appBarH =
         Scaffold.maybeOf(context)?.appBarMaxHeight ?? kToolbarHeight;
-    final screenH =
-        media.size.height - media.padding.top - media.padding.bottom - appBarH;
+    final screenH = media.size.height - appBarH;
     final sheetH = screenH * (isListMode ? _maxSize : _sheetSize);
 
     return Positioned(
@@ -181,9 +180,17 @@ class _MeetingRoomDraggableSheetState
                       }
 
                       final delta = dy / screenH;
-                      setState(
-                        () => _sheetSize = _clampSize(_sheetSize - delta),
-                      );
+                      final nextSize = _clampSize(_sheetSize - delta);
+                      if (!_switchingToList &&
+                          dy < 0 &&
+                          nextSize >= _maxSize * lockThreshold) {
+                        _setMode(MeetingRoomViewMode.list);
+                        return;
+                      }
+                      if ((nextSize - _sheetSize).abs() < 0.0001) {
+                        return;
+                      }
+                      setState(() => _sheetSize = nextSize);
                     },
               onDragEnd: isListMode
                   ? null
@@ -206,19 +213,19 @@ class _MeetingRoomDraggableSheetState
               child: Column(
                 children: [
                   // handle
-                  if (!isListMode)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 10, bottom: 8),
-                      child: Container(
-                        width: 80,
-                        height: 5,
-                        decoration: BoxDecoration(
-                          color: Colors.grey.shade300,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 10, bottom: 4),
+                    child: Container(
+                      width: 80,
+                      height: 5,
+                      decoration: BoxDecoration(
+                        color: !isListMode
+                            ? Colors.grey.shade300
+                            : Colors.transparent,
+                        borderRadius: BorderRadius.circular(999),
                       ),
                     ),
-
+                  ),
                   Padding(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 8,
@@ -229,7 +236,7 @@ class _MeetingRoomDraggableSheetState
                 ],
               ),
             ),
-            widget.child,
+            Expanded(child: RepaintBoundary(child: widget.child)),
           ],
         ),
       ),

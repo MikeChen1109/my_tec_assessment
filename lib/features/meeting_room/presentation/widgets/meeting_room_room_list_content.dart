@@ -59,7 +59,7 @@ class MeetingRoomRoomListContent extends StatelessWidget {
     final listView = GroupedListView<_GroupedRoomItem, String>(
       elements: groupedItems,
       physics: _scrollPhysics,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
       groupBy: (item) => item.groupName,
       groupSeparatorBuilder: (groupName) {
         return Padding(

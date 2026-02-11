@@ -68,16 +68,13 @@ class _MeetingRoomHomePageState extends ConsumerState<MeetingRoomHomePage> {
                   width: double.infinity,
                   child: MeetingRoomFilterBar(),
                 ),
-                child: Expanded(
-                  child: MeetingRoomRoomListContent(
-                    status: homeState.status,
-                    isEmpty: homeState.groupedRoomsWithPricing.isEmpty,
-                    groupedRoomsWithPricing: homeState.groupedRoomsWithPricing,
-                    enableRefresh: viewMode == MeetingRoomViewMode.list,
-                    onRefresh: () => ref
-                        .read(meetingRoomHomeStateProvider.notifier)
-                        .refresh(),
-                  ),
+                child: MeetingRoomRoomListContent(
+                  status: homeState.status,
+                  isEmpty: homeState.groupedRoomsWithPricing.isEmpty,
+                  groupedRoomsWithPricing: homeState.groupedRoomsWithPricing,
+                  enableRefresh: viewMode == MeetingRoomViewMode.list,
+                  onRefresh: () =>
+                      ref.read(meetingRoomHomeStateProvider.notifier).refresh(),
                 ),
               ),
             ],
