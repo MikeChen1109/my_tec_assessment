@@ -6,10 +6,12 @@ import '../../../../core/di/providers.dart';
 import '../../domain/entities/centre.dart';
 import '../../domain/entities/city.dart';
 import '../../domain/entities/room_pricing.dart';
+import '../../domain/entities/room_availability.dart';
 import '../../domain/usecases/city_discovery.dart';
 import '../../domain/usecases/get_centres.dart';
 import '../../domain/usecases/get_cities.dart';
 import '../../domain/usecases/get_meeting_rooms.dart';
+import '../../domain/usecases/get_room_availability.dart';
 import '../../domain/usecases/get_room_pricing.dart';
 import '../services/user_location_service.dart';
 import 'meeting_room_filter_state_provider.dart';
@@ -24,6 +26,7 @@ final meetingRoomHomeStateProvider =
         getCentres: ref.read(getCentresProvider),
         getRoomPricing: ref.read(getRoomPricingProvider),
         getMeetingRooms: ref.read(getMeetingRoomsProvider),
+        getRoomAvailability: ref.read(getRoomAvailabilityProvider),
         filterStateReader: () => ref.read(meetingRoomFilterStateProvider),
       );
     });
@@ -35,12 +38,14 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
     required GetCentres getCentres,
     required GetRoomPricing getRoomPricing,
     required GetMeetingRooms getMeetingRooms,
+    required GetRoomAvailability getRoomAvailability,
     required MeetingRoomFilterState Function() filterStateReader,
   }) : _locationService = locationService,
        _getCities = getCities,
        _getCentres = getCentres,
        _getRoomPricing = getRoomPricing,
        _getMeetingRooms = getMeetingRooms,
+       _getRoomAvailability = getRoomAvailability,
        _filterStateReader = filterStateReader,
        _cityDiscoveryUseCase = const CityDiscoveryUseCase(),
        super(
@@ -65,6 +70,7 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
   final GetCentres _getCentres;
   final GetRoomPricing _getRoomPricing;
   final GetMeetingRooms _getMeetingRooms;
+  final GetRoomAvailability _getRoomAvailability;
   final MeetingRoomFilterState Function() _filterStateReader;
   final CityDiscoveryUseCase _cityDiscoveryUseCase;
 
@@ -106,7 +112,10 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
           cityCode: state.city?.code,
         );
         if (!mounted) return;
-        final filteredRoomsWithPricing = _applyRoomFilters(roomsWithPricing);
+        final filteredRoomsWithPricing = await _applyRoomFilters(
+          roomsWithPricing,
+          cityCode: state.city?.code,
+        );
         final groupedRoomsWithPricing = _groupRoomsByCentreName(
           filteredRoomsWithPricing,
           _centres,
@@ -137,7 +146,10 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
           cityCode: city.code,
         );
         if (!mounted) return;
-        final filteredRoomsWithPricing = _applyRoomFilters(roomsWithPricing);
+        final filteredRoomsWithPricing = await _applyRoomFilters(
+          roomsWithPricing,
+          cityCode: city.code,
+        );
         final groupedRoomsWithPricing = _groupRoomsByCentreName(
           filteredRoomsWithPricing,
           _centres,
@@ -207,10 +219,7 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
       centres: _centres,
       cityCode: city.code,
     );
-    state = state.copyWith(
-      city: city,
-      nearestCityCentres: centreGroups,
-    );
+    state = state.copyWith(city: city, nearestCityCentres: centreGroups);
   }
 
   Future<_MeetingRoomHomeLoadData> _loadData() async {
@@ -228,7 +237,10 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
     final roomsWithPricing = await _loadRoomsWithPricing(
       cityCode: discovery.nearestCity?.code,
     );
-    final filteredRoomsWithPricing = _applyRoomFilters(roomsWithPricing);
+    final filteredRoomsWithPricing = await _applyRoomFilters(
+      roomsWithPricing,
+      cityCode: discovery.nearestCity?.code,
+    );
     final groupedRoomsWithPricing = _groupRoomsByCentreName(
       filteredRoomsWithPricing,
       centres,
@@ -277,9 +289,7 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
       cityCode: resolvedCityCode,
       isVcBooking: filterState.videoConferenceEnabled,
     );
-    final roomsFuture = _getMeetingRooms(
-      cityCode: resolvedCityCode,
-    );
+    final roomsFuture = _getMeetingRooms(cityCode: resolvedCityCode);
     final pricing = await pricingFuture;
     final rooms = await roomsFuture;
     if (rooms.isEmpty) {
@@ -298,17 +308,28 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
     }).toList();
   }
 
-  List<MeetingRoomWithPricing> _applyRoomFilters(
-    List<MeetingRoomWithPricing> rooms,
-  ) {
+  Future<List<MeetingRoomWithPricing>> _applyRoomFilters(
+    List<MeetingRoomWithPricing> rooms, {
+    required String? cityCode,
+  }) async {
     if (rooms.isEmpty) {
       return const [];
     }
     final filterState = _filterStateReader();
+    final availabilityByRoomCode = await _loadAvailabilityByRoomCode(
+      cityCode: cityCode,
+      filterState: filterState,
+    );
     final selectedCentreCodes = filterState.selectedCentreCodes;
     final capacity = filterState.capacity;
     return rooms.where((item) {
       if (!item.room.isBookable || item.room.isClosed) {
+        return false;
+      }
+      final availability = availabilityByRoomCode[item.room.roomCode.trim()];
+      if (availability != null &&
+          !availability.isAvailable &&
+          availability.isPast) {
         return false;
       }
       if (item.room.capacity < capacity) {
@@ -319,6 +340,34 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
       }
       return true;
     }).toList();
+  }
+
+  Future<Map<String, RoomAvailability>> _loadAvailabilityByRoomCode({
+    required String? cityCode,
+    required MeetingRoomFilterState filterState,
+  }) async {
+    final resolvedCityCode = cityCode?.trim();
+    if (resolvedCityCode == null || resolvedCityCode.isEmpty) {
+      return const {};
+    }
+    final result = await _getRoomAvailability(
+      startDate: filterState.startDateTime,
+      endDate: filterState.endDateTime,
+      cityCode: resolvedCityCode,
+    );
+    return result.when(
+      success: (data) {
+        final availabilityByRoomCode = <String, RoomAvailability>{};
+        for (final item in data) {
+          final trimmed = item.roomCode.trim();
+          if (trimmed.isNotEmpty) {
+            availabilityByRoomCode[trimmed] = item;
+          }
+        }
+        return availabilityByRoomCode;
+      },
+      failure: (_) => const {},
+    );
   }
 
   Map<String, List<MeetingRoomWithPricing>> _groupRoomsByCentreName(
@@ -343,8 +392,7 @@ class MeetingRoomHomeStateNotifier extends StateNotifier<MeetingRoomHomeState> {
     }
     final grouped = <String, List<MeetingRoomWithPricing>>{};
     for (final item in rooms) {
-      final groupName =
-          centreCodeToName[item.room.centreCode] ?? 'Other';
+      final groupName = centreCodeToName[item.room.centreCode] ?? 'Other';
       grouped.putIfAbsent(groupName, () => []).add(item);
     }
     return grouped;
